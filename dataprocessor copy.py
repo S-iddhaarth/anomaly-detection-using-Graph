@@ -13,9 +13,10 @@ class dataPreprocessing:
         self.sampling_rate = sampling_rate
         self.X,self.Y = self._load_from_dataset()
         self.superClass = ["NORM","MI","STTC","CD","HYP"]
-        self.superClassCount_o = {"NORM":9514,"MI":5469,"STTC":5235,"CD":4898,"HYP":2649}
+        self.superClassCount_o = {"NORM":9069,"MI":2532,"STTC":2400,"CD":1709,"HYP":535}
         superSet = self.Y['diagnostic_superclass'].tolist()
         self.allClass = np.array([str(i).replace('[', '').replace(']', '').replace("'", '') for i in superSet])
+        print(np.unique(self.allClass))
 
     def _load_raw_data(self,df:pd.DataFrame)->np.ndarray:
 
@@ -59,6 +60,7 @@ class dataPreprocessing:
             return list(set(tmp))
 
         Y['diagnostic_superclass'] = Y.scp_codes.apply(aggregate_diagnostic)
+        
 
         return X,Y
 
@@ -68,16 +70,21 @@ class dataPreprocessing:
             all super class
         """
         
-        value = {"NORM": np.zeros((9514,1000,12)), "MI": np.zeros((5469,1000,12)), 
-                "STTC": np.zeros((5235,1000,12)), "CD": np.zeros((4898,1000,12)), 
-                "HYP": np.zeros((2649,1000,12))}
+        value = {
+    "NORM": np.zeros((9069, 1000, 12)),
+    "MI": np.zeros((2532, 1000, 12)),
+    "STTC": np.zeros((2400, 1000, 12)),
+    "CD": np.zeros((1709, 1000, 12)),
+    "HYP": np.zeros((535, 1000, 12))
+}
+
         
         tracker = {"NORM": 0, "MI": 0, "STTC": 0, "CD": 0, "HYP": 0}
         
         for i in range(self.X.shape[0]):
             for j in self.superClass:
                 if j in self.allClass[i]:
-                    value[j][tracker[j]] = self.X[i] 
+                    value[j][tracker[j]].strip() == self.X[i] 
                     tracker[j]+=1
         if save:
             try:

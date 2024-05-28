@@ -4,17 +4,21 @@ import networkx as nx
 import math
 from ts2vg import NaturalVG,HorizontalVG
 import os
+import time
+import logging
+
+
 
 class featureExtractor:
     def __init__(self,data:dict) -> None:
         self.features = ("number of edges",
             "clustering coeff",
-            "global efficiency",
+            # "global efficiency",
             "graph index complexity",
-            "max clique size",
-            "TSP cost",
-            "independence number",
-            "min cut size",
+            # "max clique size",
+            # "TSP cost",
+            # "independence number",
+            # "min cut size",
             "vertex coloring number",
             "entropy",
             "avg degree",
@@ -28,9 +32,11 @@ class featureExtractor:
             "assortativity",
             "longest path")
         
-        self.channels = ("I", "II", "III", "aVL", 
-                        "aVR", "aVF", "V1", "V2", 
-                        "V3", "V4", "V5", "V6")
+        self.channels = ("I",
+                        # , "II", "III", "aVL", 
+                        # "aVR", "aVF", "V1", "V2", 
+                        # "V3", "V4", "V5", "V6"
+                        )
         self.data = data
         self.visibilityG = NaturalVG()
         self.horizontalVG =HorizontalVG()
@@ -77,21 +83,21 @@ class featureExtractor:
 
         clustering_coeff = nx.average_clustering(G)
 
-        global_efficiency = nx.global_efficiency(G)
+        # global_efficiency = nx.global_efficiency(G)
 
         # small_worldness = nx.sigma(G)  # small worldness
 
         graph_index_complexity = self._GraphIndexComplexity(G)
 
-        max_clique_size = len(next(nx.find_cliques(G)))  # size of max clique
+        # max_clique_size = len(next(nx.find_cliques(G)))  # size of max clique
 
         # cost of TSP
-        tsp_cost = len(nx.approximation.traveling_salesman_problem(G))
+        # tsp_cost = len(nx.approximation.traveling_salesman_problem(G))
 
-        independence_number = len(
-            nx.maximal_independent_set(G))  # independence number
+        # independence_number = len(
+            # nx.maximal_independent_set(G))  # independence number
 
-        min_cut_size = len(nx.minimum_edge_cut(G))  # size of minimum cut
+        # min_cut_size = len(nx.minimum_edge_cut(G))  # size of minimum cut
 
         vertex_coloring_number = self._VertexColoringNumber(G)
 
@@ -114,12 +120,12 @@ class featureExtractor:
         return (
         no_of_edges,
         clustering_coeff,
-        global_efficiency,
+        # global_efficiency,
         graph_index_complexity,
-        max_clique_size,
-        tsp_cost,
-        independence_number,
-        min_cut_size,
+        # max_clique_size,
+        # tsp_cost,
+        # independence_number,
+        # min_cut_size,
         vertex_coloring_number,
         entropy,
         avg_degree,
@@ -134,20 +140,28 @@ class featureExtractor:
         longest_path
     )
         
-    def get_VG_feature_map(self):
+    def get_VG_feature_map(self, channel_s, sample_s, feature_s):
+        total_iterations = 5 * channel_s * sample_s
+        logging.info(f'Total iterations: {total_iterations}')
+
         val = {}
         for i, j in self.data.items():
             sz = j.shape
-            feature = np.zeros((sz[0], 12, len(self.features)))
-            for k in range(sz[0]):
-                for l in range(12):
-                    self.visibilityG.build(j[k][l])
+            feature = np.zeros((sample_s, feature_s, feature_s))
+            for k in range(sample_s):
+                start = time.time()
+                for l in range(channel_s):
+                    self.visibilityG.build(j[k, 0:100, l])
                     graph = self.visibilityG.as_networkx()
                     fe = self._features(graph)
                     feature[k][l] = fe
-                    print(f'in - {i}-{k}-{l}')
+                    logging.debug(f'Processed feature for {i}-{k}-{l}')
+                end = time.time()
+                logging.info(f'Completed iteration for sample {k} in {end - start} seconds')
             val[i] = feature
+
         return val
+
     def get_HVG_feature_map(self):
         val = {}
         for i, j in self.data.items():
@@ -155,7 +169,7 @@ class featureExtractor:
             feature = np.zeros((sz[0], 12, len(self.features)))
             for k in range(sz[0]):
                 for l in range(12):
-                    self.horizontalVG.build(j[k][l])
+                    self.horizontalVG.build(j[k:,l])
                     graph = self.horizontalVG.as_networkx()
                     fe = self._features(graph)
                     feature[k][l] = fe
@@ -171,7 +185,7 @@ class featureExtractor:
                 os.mkdir(pth)
             np.save(os.path.join(j,name),j)
     
-    def load_as_dataframe(self,dic:dict):
+    def load_as_dataframe(self,dic:dict,chl,fet):
         data_rows = []
 
         # Iterate through each class and their data
@@ -182,8 +196,8 @@ class featureExtractor:
                 row = {}
                 row['Class'] = class_label
 
-                for channel_index in range(12):
-                    for feature_index in range(9):
+                for channel_index in range(chl):
+                    for feature_index in range(fet):
                         column_name = f'{self.channels[channel_index]}_{self.features[feature_index]}'
                         row[column_name] = dataset[sample_index, channel_index, feature_index]
 
